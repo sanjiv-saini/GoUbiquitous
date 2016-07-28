@@ -21,6 +21,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -60,6 +62,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Paint mBackgroundPaint;
         Paint mTimePaint;
         Paint mDatePaint;
+        Paint mLinePaint;
+        Paint mMaxTempPaint;
+        Paint mMinTempPaint;
+        Paint mWeatherIconPaint;
 
         boolean mAmbient;
         Calendar mCalendar;
@@ -70,12 +76,16 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-        int mTapCount;
 
-        float mXTimeOffset;
         float mYTimeOffset;
-        float mXDateOffset;
         float mYDateOffset;
+        float mYLineOffset;
+        float mWeatherInfoYOffset;
+
+        String mMaxTemp = "25";
+        String mMinTemp = "16";
+
+        Bitmap mWeatherIconBitmap;
 
         SimpleDateFormat mDateFormatter;
         /**
@@ -100,18 +110,28 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             Resources resources = SunshineWatchFace.this.getResources();
             mYTimeOffset = resources.getDimension(R.dimen.time_y_offset);
             mYDateOffset = resources.getDimension(R.dimen.date_y_offset);
+            mYLineOffset = resources.getDimension(R.dimen.line_y_offset);
+            mWeatherInfoYOffset = resources.getDimension(R.dimen.weather_info_y_offset);
 
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
-            mTimePaint = createTextPaint(resources.getColor(R.color.time_color));
-            mDatePaint = createTextPaint(resources.getColor(R.color.Date_color));
+            mTimePaint = createTextPaint(resources.getColor(R.color.white_color));
+            mDatePaint = createTextPaint(resources.getColor(R.color.light_blue));
+            mMaxTempPaint = createTextPaint(resources.getColor(R.color.white_color));
+            mMinTempPaint = createTextPaint(resources.getColor(R.color.light_blue));
 
-            float timeTextSize = resources.getDimension(R.dimen.time_text_size);
-            mTimePaint.setTextSize(timeTextSize);
+            mTimePaint.setTextSize(resources.getDimension(R.dimen.time_text_size));
+            mDatePaint.setTextSize(resources.getDimension(R.dimen.date_text_size));
+            mMaxTempPaint.setTextSize(resources.getDimension(R.dimen.temp_text_size));
+            mMinTempPaint.setTextSize(resources.getDimension(R.dimen.temp_text_size));
 
-            float dateTextSize = resources.getDimension(R.dimen.date_text_size);
-            mDatePaint.setTextSize(dateTextSize);
+            mLinePaint = new Paint();
+            mLinePaint.setColor(resources.getColor(R.color.light_blue));
+
+            mWeatherIconPaint = new Paint();
+
+            mWeatherIconBitmap = BitmapFactory.decodeResource(resources, R.drawable.art_clear);
 
             mCalendar = Calendar.getInstance();
         }
@@ -198,12 +218,38 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             String timeText = String.format("%02d:%02d", mCalendar.get(Calendar.HOUR), mCalendar.get(Calendar.MINUTE));
             String dateText = mDateFormatter.format(mCalendar.getTime());
 
-            mXTimeOffset = bounds.centerX() - (mTimePaint.measureText(timeText))/2;
-            mXDateOffset = bounds.centerX() - (mDatePaint.measureText(dateText))/2;
+            canvas.drawText(timeText,
+                    bounds.centerX() - (mTimePaint.measureText(timeText))/2,
+                    mYTimeOffset,
+                    mTimePaint);
 
-            canvas.drawText(timeText, mXTimeOffset, mYTimeOffset, mTimePaint);
-            canvas.drawText(dateText, mXDateOffset, mYDateOffset, mDatePaint);
+            canvas.drawText(dateText,
+                    bounds.centerX() - (mDatePaint.measureText(dateText))/2,
+                    mYDateOffset,
+                    mDatePaint);
 
+            canvas.drawLine(bounds.centerX()-25,
+                    mYLineOffset,
+                    bounds.centerX()+25,
+                    mYLineOffset,
+                    mLinePaint);
+
+            float maxTempTextSize = mDatePaint.measureText(mMaxTemp);
+
+            canvas.drawBitmap(mWeatherIconBitmap,
+                    bounds.centerX() + (maxTempTextSize)/2 - 20,
+                    mWeatherInfoYOffset + 15,
+                    mWeatherIconPaint);
+
+            canvas.drawText(mMaxTemp,
+                    bounds.centerX() - (maxTempTextSize)/2,
+                    mWeatherInfoYOffset,
+                    mMaxTempPaint);
+
+            canvas.drawText(mMinTemp,
+                    bounds.centerX() + (maxTempTextSize)/2 + 20,
+                    mWeatherInfoYOffset,
+                    mMinTempPaint);
         }
     }
 }

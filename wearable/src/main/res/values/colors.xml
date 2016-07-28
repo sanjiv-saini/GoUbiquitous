@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="background">#039BE5</color>
-    <color name="time_color">#ffffff</color>
-    <color name="Date_color">#B3E5FC</color>
+    <color name="white_color">#ffffff</color>
+    <color name="light_blue">#B3E5FC</color>
 
 </resources>
