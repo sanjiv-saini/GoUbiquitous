@@ -28,7 +28,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -39,7 +38,6 @@ import android.view.SurfaceHolder;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
@@ -47,7 +45,6 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -83,6 +80,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         final String ICON_KEY = "icon";
         final String HIGH_TEMP_KEY = "high";
         final String LOW_TEMP_KEY = "low";
+
+        int BITMAP_ICON_SIZE = 60;
 
         Paint mBackgroundPaint;
         Paint mTimePaint;
@@ -188,6 +187,9 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         public void onDataChanged(DataEventBuffer dataEvents    ) {
             Log.d(TAG, "onDataChanged is called");
 
+            Resources resources = SunshineWatchFace.this.getResources();
+            int artResourceId;
+
             for (DataEvent event : dataEvents) {
                 if (event.getType() == DataEvent.TYPE_CHANGED) {
                     String path = event.getDataItem().getUri().getPath();
@@ -198,52 +200,23 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                         mMinTemp = dataMap.getString(LOW_TEMP_KEY);
                         Log.d(TAG, "dataItem path:" + WEATHER_DATA_PATH);
 
-                        Asset iconAsset = dataMap.getAsset(ICON_KEY);
-                        new LoadBitmapAsyncTask().execute(iconAsset);
+                        artResourceId = Utility.getArtResourceForWeatherCondition(
+                                dataMap.getInt(ICON_KEY));
+
+                        mWeatherIconBitmap = BitmapFactory.decodeResource(resources, artResourceId);
+                        mWeatherIconBitmap = Bitmap.createScaledBitmap( mWeatherIconBitmap,
+                                BITMAP_ICON_SIZE,
+                                BITMAP_ICON_SIZE, true);
 
                     }else {
                         Log.d(TAG, "Unrecognized path: " + path);
                     }
                 }
             }
+
+            invalidate();
         }
 
-
-        private class LoadBitmapAsyncTask extends AsyncTask<Asset, Void, Bitmap> {
-
-            @Override
-            protected Bitmap doInBackground(Asset... params) {
-
-                if (params.length > 0) {
-
-                    Asset asset = params[0];
-
-                    InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
-                            mGoogleApiClient, asset).await().getInputStream();
-
-                    if (assetInputStream == null) {
-                        Log.w(TAG, "Requested an unknown Asset.");
-                        return null;
-                    }
-                    return BitmapFactory.decodeStream(assetInputStream);
-
-                } else {
-                    Log.e(TAG, "Asset must be non-null");
-                    return null;
-                }
-            }
-
-            @Override
-            protected void onPostExecute(Bitmap bitmap) {
-
-                if (bitmap != null) {
-                    Log.d(TAG, "Setting weather icon");
-                    mWeatherIconBitmap = bitmap;
-                }
-
-                invalidate();
-            }
-        }
 
         @Override
         public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {

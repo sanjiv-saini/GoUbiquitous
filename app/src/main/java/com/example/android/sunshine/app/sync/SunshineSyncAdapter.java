@@ -41,7 +41,6 @@ import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
@@ -52,7 +51,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -75,8 +73,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     public static final int SYNC_FLEXTIME = SYNC_INTERVAL/3;
     private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
     private static final int WEATHER_NOTIFICATION_ID = 3004;
-
-    private static final int BITMAP_ICON_SIZE = 60;
 
     private GoogleApiClient mGoogleApiClient;
 
@@ -559,15 +555,10 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
             double high = cursor.getDouble(INDEX_MAX_TEMP);
             double low = cursor.getDouble(INDEX_MIN_TEMP);
 
-            Resources resources = context.getResources();
-            int artResourceId = Utility.getArtResourceForWeatherCondition(weatherId);
-
-            Bitmap weatherIcon = BitmapFactory.decodeResource(resources, artResourceId);
-
-            if (null != weatherIcon && mGoogleApiClient.isConnected()) {
+            if (mGoogleApiClient.isConnected()) {
 
                 PutDataMapRequest dataMap = PutDataMapRequest.create(WEATHER_DATA_PATH);
-                dataMap.getDataMap().putAsset(ICON_KEY, toAsset(weatherIcon));
+                dataMap.getDataMap().putInt(ICON_KEY, weatherId);
                 dataMap.getDataMap().putString(HIGH_TEMP_KEY, Utility.formatTemperature(context, high));
                 dataMap.getDataMap().putString(LOW_TEMP_KEY, Utility.formatTemperature(context, low));
                 PutDataRequest request = dataMap.asPutDataRequest();
@@ -587,25 +578,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
 
     }
 
-    private static Asset toAsset(Bitmap bitmap) {
-        ByteArrayOutputStream byteStream = null;
-        try {
-            byteStream = new ByteArrayOutputStream();
-
-            bitmap = Bitmap.createScaledBitmap( bitmap, BITMAP_ICON_SIZE, BITMAP_ICON_SIZE, true);
-
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
-            return Asset.createFromBytes(byteStream.toByteArray());
-        } finally {
-            if (null != byteStream) {
-                try {
-                    byteStream.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        }
-    }
     /**
      * Helper method to handle insertion of a new location in the weather database.
      *
