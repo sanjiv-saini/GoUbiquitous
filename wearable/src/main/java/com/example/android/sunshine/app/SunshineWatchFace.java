@@ -28,11 +28,26 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Wearable;
+
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -45,6 +60,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
+    private static final String TAG = SunshineWatchFace.class.getSimpleName();
+
     /**
      * Handler message id for updating the time periodically in interactive mode.
      */
@@ -56,8 +73,16 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
     }
 
 
-    private class Engine extends CanvasWatchFaceService.Engine {
+    private class Engine extends CanvasWatchFaceService.Engine implements
+            GoogleApiClient.ConnectionCallbacks,
+            GoogleApiClient.OnConnectionFailedListener,
+            DataApi.DataListener{
         boolean mRegisteredTimeZoneReceiver = false;
+
+        final String WEATHER_DATA_PATH = "/weather-data";
+        final String ICON_KEY = "icon";
+        final String HIGH_TEMP_KEY = "high";
+        final String LOW_TEMP_KEY = "low";
 
         Paint mBackgroundPaint;
         Paint mTimePaint;
@@ -82,17 +107,26 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         float mYLineOffset;
         float mWeatherInfoYOffset;
 
-        String mMaxTemp = "25";
-        String mMinTemp = "16";
+        String mMaxTemp = "";
+        String mMinTemp = "";
 
-        Bitmap mWeatherIconBitmap;
+        Bitmap mWeatherIconBitmap = null;
 
         SimpleDateFormat mDateFormatter;
+
+        final long TIMEOUT_MS = 100;
+
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
          * disable anti-aliasing in ambient mode.
          */
         boolean mLowBitAmbient;
+
+        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(Wearable.API)
+                .build();
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -131,11 +165,92 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             mWeatherIconPaint = new Paint();
 
-            mWeatherIconBitmap = BitmapFactory.decodeResource(resources, R.drawable.art_clear);
-
             mCalendar = Calendar.getInstance();
         }
 
+
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "onConnected: " + bundle);
+            }
+            Wearable.DataApi.addListener(mGoogleApiClient, Engine.this);
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "onConnectionSuspended: " + i);
+            }
+        }
+
+        @Override
+        public void onDataChanged(DataEventBuffer dataEvents    ) {
+            Log.d(TAG, "onDataChanged is called");
+
+            for (DataEvent event : dataEvents) {
+                if (event.getType() == DataEvent.TYPE_CHANGED) {
+                    String path = event.getDataItem().getUri().getPath();
+                    if (WEATHER_DATA_PATH.equals(path)) {
+                        DataMap dataMap = DataMapItem.fromDataItem(event.getDataItem()).getDataMap();
+
+                        mMaxTemp = dataMap.getString(HIGH_TEMP_KEY);
+                        mMinTemp = dataMap.getString(LOW_TEMP_KEY);
+                        Log.d(TAG, "dataItem path:" + WEATHER_DATA_PATH);
+
+                        Asset iconAsset = dataMap.getAsset(ICON_KEY);
+                        new LoadBitmapAsyncTask().execute(iconAsset);
+
+                    }else {
+                        Log.d(TAG, "Unrecognized path: " + path);
+                    }
+                }
+            }
+        }
+
+
+        private class LoadBitmapAsyncTask extends AsyncTask<Asset, Void, Bitmap> {
+
+            @Override
+            protected Bitmap doInBackground(Asset... params) {
+
+                if (params.length > 0) {
+
+                    Asset asset = params[0];
+
+                    InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                            mGoogleApiClient, asset).await().getInputStream();
+
+                    if (assetInputStream == null) {
+                        Log.w(TAG, "Requested an unknown Asset.");
+                        return null;
+                    }
+                    return BitmapFactory.decodeStream(assetInputStream);
+
+                } else {
+                    Log.e(TAG, "Asset must be non-null");
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(Bitmap bitmap) {
+
+                if (bitmap != null) {
+                    Log.d(TAG, "Setting weather icon");
+                    mWeatherIconBitmap = bitmap;
+                }
+
+                invalidate();
+            }
+        }
+
+        @Override
+        public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "onConnectionFailed: " + connectionResult);
+            }
+        }
 
         private Paint createTextPaint(int textColor) {
             Paint paint = new Paint();
@@ -151,11 +266,17 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             if (visible) {
                 registerReceiver();
+                mGoogleApiClient.connect();
 
                 // Update time zone in case it changed while we weren't visible.
                 mCalendar.setTimeZone(TimeZone.getDefault());
             } else {
                 unregisterReceiver();
+
+                if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+                    Wearable.DataApi.removeListener(mGoogleApiClient, this);
+                    mGoogleApiClient.disconnect();
+                }
             }
         }
 
@@ -236,10 +357,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             float maxTempTextSize = mDatePaint.measureText(mMaxTemp);
 
-            canvas.drawBitmap(mWeatherIconBitmap,
-                    bounds.centerX() + (maxTempTextSize)/2 - 20,
-                    mWeatherInfoYOffset + 15,
-                    mWeatherIconPaint);
+            if(mWeatherIconBitmap!=null) {
+                canvas.drawBitmap(mWeatherIconBitmap,
+                        bounds.centerX() + (maxTempTextSize) / 2 - 100,
+                        mWeatherInfoYOffset - 45,
+                        mWeatherIconPaint);
+            }
 
             canvas.drawText(mMaxTemp,
                     bounds.centerX() - (maxTempTextSize)/2,
@@ -247,7 +370,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     mMaxTempPaint);
 
             canvas.drawText(mMinTemp,
-                    bounds.centerX() + (maxTempTextSize)/2 + 20,
+                    bounds.centerX() + (maxTempTextSize)/2 + 30,
                     mWeatherInfoYOffset,
                     mMinTempPaint);
         }

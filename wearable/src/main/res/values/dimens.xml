@@ -4,9 +4,10 @@
     <dimen name="date_text_size">14sp</dimen>
     <dimen name="temp_text_size">24sp</dimen>
 
-    <dimen name="time_y_offset">50dp</dimen>
-    <dimen name="date_y_offset">75dp</dimen>
+    <dimen name="time_y_offset">63dp</dimen>
+    <dimen name="date_y_offset">85dp</dimen>
     <dimen name="line_y_offset">105dp</dimen>
-    <dimen name="weather_info_y_offset">135dp</dimen>
+    <dimen name="weather_info_y_offset">140dp</dimen>
+
 
 </resources>
