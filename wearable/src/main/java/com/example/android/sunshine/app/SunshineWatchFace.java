@@ -34,6 +34,7 @@ import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.SurfaceHolder;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -113,6 +114,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         SimpleDateFormat mDateFormatter;
 
+        Resources mResources;
+
         final long TIMEOUT_MS = 100;
 
         /**
@@ -136,33 +139,36 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
                     .setAcceptsTapEvents(true)
+                    .setHotwordIndicatorGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL)
                     .build());
 
             mDateFormatter = new SimpleDateFormat("EEE, MMM dd yyyy");
 
-            Resources resources = SunshineWatchFace.this.getResources();
-            mYTimeOffset = resources.getDimension(R.dimen.time_y_offset);
-            mYDateOffset = resources.getDimension(R.dimen.date_y_offset);
-            mYLineOffset = resources.getDimension(R.dimen.line_y_offset);
-            mWeatherInfoYOffset = resources.getDimension(R.dimen.weather_info_y_offset);
+            mResources = SunshineWatchFace.this.getResources();
+            mYTimeOffset = mResources.getDimension(R.dimen.time_y_offset);
+            mYDateOffset = mResources.getDimension(R.dimen.date_y_offset);
+            mYLineOffset = mResources.getDimension(R.dimen.line_y_offset);
+            mWeatherInfoYOffset = mResources.getDimension(R.dimen.weather_info_y_offset);
 
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(resources.getColor(R.color.background));
+            mBackgroundPaint.setColor(mResources.getColor(R.color.background));
 
-            mTimePaint = createTextPaint(resources.getColor(R.color.white_color));
-            mDatePaint = createTextPaint(resources.getColor(R.color.light_blue));
-            mMaxTempPaint = createTextPaint(resources.getColor(R.color.white_color));
-            mMinTempPaint = createTextPaint(resources.getColor(R.color.light_blue));
+            mTimePaint = createTextPaint(mResources.getColor(R.color.white_color));
+            mDatePaint = createTextPaint(mResources.getColor(R.color.light_blue));
+            mMaxTempPaint = createTextPaint(mResources.getColor(R.color.white_color));
+            mMinTempPaint = createTextPaint(mResources.getColor(R.color.light_blue));
 
-            mTimePaint.setTextSize(resources.getDimension(R.dimen.time_text_size));
-            mDatePaint.setTextSize(resources.getDimension(R.dimen.date_text_size));
-            mMaxTempPaint.setTextSize(resources.getDimension(R.dimen.temp_text_size));
-            mMinTempPaint.setTextSize(resources.getDimension(R.dimen.temp_text_size));
+            mTimePaint.setTextSize(mResources.getDimension(R.dimen.time_text_size));
+            mDatePaint.setTextSize(mResources.getDimension(R.dimen.date_text_size));
+            mMaxTempPaint.setTextSize(mResources.getDimension(R.dimen.temp_text_size));
+            mMinTempPaint.setTextSize(mResources.getDimension(R.dimen.temp_text_size));
 
             mLinePaint = new Paint();
-            mLinePaint.setColor(resources.getColor(R.color.light_blue));
+            mLinePaint.setColor(mResources.getColor(R.color.light_blue));
 
             mWeatherIconPaint = new Paint();
+
+          //  mWeatherIconBitmap = BitmapFactory.decodeResource(mResources, R.drawable.art_clear);
 
             mCalendar = Calendar.getInstance();
         }
@@ -292,6 +298,13 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     mTimePaint.setAntiAlias(!inAmbientMode);
                     mDatePaint.setAntiAlias(!inAmbientMode);
                 }
+
+                if(mAmbient){
+                    mDatePaint.setColor(mResources.getColor(R.color.grey));
+                }else{
+                    mDatePaint.setColor(mResources.getColor(R.color.light_blue));
+                }
+
                 invalidate();
             }
         }
@@ -310,7 +323,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mCalendar.setTimeInMillis(System.currentTimeMillis());
 
             String timeText = String.format("%02d:%02d", mCalendar.get(Calendar.HOUR), mCalendar.get(Calendar.MINUTE));
-            String dateText = mDateFormatter.format(mCalendar.getTime());
+            String dateText = mDateFormatter.format(mCalendar.getTime()).toUpperCase();
 
             canvas.drawText(timeText,
                     bounds.centerX() - (mTimePaint.measureText(timeText))/2,
@@ -322,30 +335,34 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     mYDateOffset,
                     mDatePaint);
 
-            canvas.drawLine(bounds.centerX()-25,
-                    mYLineOffset,
-                    bounds.centerX()+25,
-                    mYLineOffset,
-                    mLinePaint);
+            if(!mAmbient){
 
-            float maxTempTextSize = mDatePaint.measureText(mMaxTemp);
+                canvas.drawLine(bounds.centerX()-25,
+                        mYLineOffset,
+                        bounds.centerX()+25,
+                        mYLineOffset,
+                        mLinePaint);
 
-            if(mWeatherIconBitmap!=null) {
-                canvas.drawBitmap(mWeatherIconBitmap,
-                        bounds.centerX() + (maxTempTextSize) / 2 - 100,
-                        mWeatherInfoYOffset - 45,
-                        mWeatherIconPaint);
+                float maxTempTextSize = mDatePaint.measureText(mMaxTemp);
+
+                if(mWeatherIconBitmap!=null) {
+                    canvas.drawBitmap(mWeatherIconBitmap,
+                            bounds.centerX() + (maxTempTextSize) / 2 - 110,
+                            mWeatherInfoYOffset - 45,
+                            mWeatherIconPaint);
+                }
+
+                canvas.drawText(mMaxTemp,
+                        bounds.centerX() - (maxTempTextSize)/2,
+                        mWeatherInfoYOffset,
+                        mMaxTempPaint);
+
+                canvas.drawText(mMinTemp,
+                        bounds.centerX() + (maxTempTextSize)/2 + 30,
+                        mWeatherInfoYOffset,
+                        mMinTempPaint);
             }
 
-            canvas.drawText(mMaxTemp,
-                    bounds.centerX() - (maxTempTextSize)/2,
-                    mWeatherInfoYOffset,
-                    mMaxTempPaint);
-
-            canvas.drawText(mMinTemp,
-                    bounds.centerX() + (maxTempTextSize)/2 + 30,
-                    mWeatherInfoYOffset,
-                    mMinTempPaint);
         }
     }
 }

@@ -561,6 +561,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
                 dataMap.getDataMap().putInt(ICON_KEY, weatherId);
                 dataMap.getDataMap().putString(HIGH_TEMP_KEY, Utility.formatTemperature(context, high));
                 dataMap.getDataMap().putString(LOW_TEMP_KEY, Utility.formatTemperature(context, low));
+                //dataMap.getDataMap().putLong("time",System.currentTimeMillis());
                 PutDataRequest request = dataMap.asPutDataRequest();
                 request.setUrgent();
 
@@ -695,6 +696,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
 
             onAccountCreated(newAccount, context);
         }
+
         return newAccount;
     }
 
@@ -716,6 +718,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     }
 
     public static void initializeSyncAdapter(Context context) {
+
         getSyncAccount(context);
     }
 
@@ -734,16 +737,16 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-
+        Log.d(LOG_TAG, "api client connected");
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        Log.d(LOG_TAG, "api client on connection suspended");
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
+        Log.d(LOG_TAG, "api client on connection failed");
     }
 }
